@@ -51,30 +51,48 @@
 // Matrix multiplication kernel thread specification
 __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 {
-	const size_t TILE_SIZE = 4*4;
+	const size_t TILE_LEN = 4;
+	const size_t TILE_SIZE = TILE_LEN * TILE_LEN;
 	__shared__ float mTile[TILE_SIZE];
 	__shared__ float nTile[TILE_SIZE];
 	__shared__ float pTile[TILE_SIZE];
+	pTile[threadIdx.x + (threadIdx.y * blockDim.x)] = 0;//init shared mem
 
-	for(int i = 0;i < M.width/blockDim.x; i++){//Loop through all tiles in row/column
-		mTile[threadIdx.x + (threadIdx.y * blockDim.x)] = M.elements[(blockDim.x * i + threadIdx.x) +(threadIdx.y * M.width) + (blockDim.y * blockIdx.y * M.width)];
-		nTile[threadIdx.x + (threadIdx.y * blockDim.x)] = N.elements[(blockDim.x * blockIdx.x) + (i * blockDim.y * N.width) + threadIdx.x + (N.width * threadIdx.y)];
-		pTile[threadIdx.x + (threadIdx.y * blockDim.x)] = 0;
+	int tilePerDim = (M.width % blockDim.x == 0) ? M.width/blockDim.x : (M.width/blockDim.x + 1);
+	for(int i = 0; i < tilePerDim; i++){//Loop through rows needed to cover P
+
+		//size_t lim_m_x = i == (tilePerDim - 1) ? M.width - i * blockDim.x : blockDim.x;
+		//size_t lim_m_y = i == (tilePerDim - 1) ? M.height - blockIdx.y * blockDim.y : blockDim.y;
+		//if (threadIdx.x < lim_m_x && threadIdx.y < lim_m_y)
+			mTile[threadIdx.x + (threadIdx.y * blockDim.x)] = M.elements[(blockDim.x * i + threadIdx.x) + (threadIdx.y * M.width) + (blockDim.y * blockIdx.y * M.width)];
 		
-		/*
-		mTile[threadIdx.x + (threadIdx.y * blockDim.x)] = 1;
-		nTile[threadIdx.x + (threadIdx.y * blockDim.x)] = 1;
-		pTile[threadIdx.x + (threadIdx.y * blockDim.x)] = 1;
-		*/
 		
+		//size_t lim_n_x = i == (tilePerDim - 1) ? N.width - blockIdx.x * blockDim.x : blockDim.x;
+		//size_t lim_n_y = i == (tilePerDim - 1) ? N.height - i * blockDim.y : blockDim.y;
+		//if (threadIdx.x < lim_n_x && threadIdx.y < lim_n_y) 
+			nTile[threadIdx.x + (threadIdx.y * blockDim.x)] = N.elements[(blockDim.x * blockIdx.x) + (i * blockDim.y * N.width) + threadIdx.x + (N.width * threadIdx.y)];
+		
+
 		__syncthreads();
-		for(int j = 0; j < blockDim.x; j++){//M*N
-			pTile[threadIdx.x + (threadIdx.y * blockDim.y)] += mTile[(threadIdx.y * blockDim.x) + j] * nTile[threadIdx.x + j * blockDim.x];
+		int nextPos = (i + 1) * blockDim.x;
+		int limit = nextPos > M.width ? M.width % blockDim.x : blockDim.x ;
+		for(int j = 0; j < limit; j++){//M*N
+			pTile[threadIdx.x + (threadIdx.y * blockDim.x)] += mTile[(threadIdx.y * blockDim.x) + j] * nTile[threadIdx.x + j * blockDim.x];
+			
 		}
 	}
-	
-	__syncthreads();
-	P.elements[blockDim.y * P.width * blockIdx.y + blockDim.x * blockIdx.x + threadIdx.x + threadIdx.y * P.width] = pTile[threadIdx.x + (threadIdx.y * blockDim.x)];
+
+	const size_t remaining_x = P.width - blockDim.x * blockIdx.x;
+	const size_t remaining_y = P.height - blockDim.y * blockIdx.y;
+
+	int tile_end_x = (blockIdx.x + 1) * blockDim.x;
+	size_t lim_x = tile_end_x > P.width ? remaining_x : blockDim.x;
+
+	int tile_end_y = (blockIdx.y + 1) * blockDim.y;
+	size_t lim_y = tile_end_y > P.height ? remaining_y : blockDim.y;
+
+	if (threadIdx.x < lim_x && threadIdx.y < lim_y)
+		P.elements[blockDim.y * P.width * blockIdx.y + blockDim.x * blockIdx.x + threadIdx.x + threadIdx.y * P.width] = pTile[threadIdx.x + (threadIdx.y * blockDim.x)];
 }
 
 #endif // #ifndef _MATRIXMUL_KERNEL_H_

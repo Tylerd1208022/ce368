@@ -151,21 +151,21 @@ void MatrixMulOnDevice(const Matrix M, const Matrix N, Matrix P)
 	// Allocate P on the device
 	Matrix Pd = AllocateDeviceMatrix(P);
 	CopyToDeviceMatrix(Pd, P); // Clear memory
-
+	const int BLOCK_LEN = 4;
+	int bH= P.height/BLOCK_LEN;
+	int bW= P.width/BLOCK_LEN;
 	// Setup the execution configuration
-	dim3 DimBlock(4,4);
-	dim3 DimGrid(1,1);
-	int sharedMemBytes = sizeof(float) * 4 * 4 * 3;
-	
+	dim3 DimBlock(BLOCK_LEN, BLOCK_LEN);
+	dim3 DimGrid(bW + 1,bH + 1);
 	// Launch the device computation threads!
-	MatrixMulKernel<<<DimGrid,DimBlock,sharedMemBytes>>>(Md,Nd,Pd);
+	MatrixMulKernel<<<DimGrid,DimBlock>>>(Md,Nd,Pd);
 	cudaDeviceSynchronize();
-
+	
 	// Read P from the device
 	CopyFromDeviceMatrix(P, Pd); 
 
-	// P.elements[1] = 4;
-
+	//P.elements[2] = 34;
+	
 	// Free device matrices
 	FreeDeviceMatrix(&Md);
 	FreeDeviceMatrix(&Nd);
