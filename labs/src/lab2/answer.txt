@@ -1,0 +1,30 @@
+andy xu - axl6282
+tyler dempski - ted4152
+
+Nsight shows a total thread usage of 225280, however given 34 SMs with a block size of 32x32 (1024 threads), so 1024 threads can (and are) scheduled at a time
+
+
+Our solution works out as follows:
+
+First, we load tiles of both M and N into shared memory in fixed 32x32 tile blocks, checking that the values are part
+of the original matricies. Threads are then synced.
+
+We then calculate a "limit" to make sure out of bounds accesses do not get computed. The tile elements are then loaded into the
+product tile as the sum of the product of the corresponding M and N element. Each thread computes one element of the P tile for the given
+block.
+
+Once this computation is completed, the process repeats at loading a new tile into shared memory for M and N, and pTile is incremented
+accordingly.
+
+Once the tiles have traversed their respective row and columns of M and N, the pTile is stored into global memory.
+
+
+Optimization:
+
+All loads from Global Memory into shared memory (represented in our kernel as mTile, nTile, and pTile) are done so in 
+row major order. Due to the constant 32 element tile width, all loads involve a load of 32 continuous floats in memory,
+giving the ideal 128 byte access on global memory loads and stores.
+
+Due to the use of only row major order operations, our solution yields zero bank conflicts. This can be verified through
+profiling the kernel. Notice, we do not need to add padding into shared memory tile allocation, as element access inside a warp is always
+done in line with 32-element rows. These 32 simulataneous accesses operate on continuous 4-byte chunks of shared memory, resulting bank usage to result in zero conflicts.

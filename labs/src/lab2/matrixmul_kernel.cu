@@ -51,7 +51,7 @@
 // Matrix multiplication kernel thread specification
 __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 {
-	const size_t TILE_LEN = 4;
+	const size_t TILE_LEN = 32;
 	const size_t TILE_SIZE = TILE_LEN * TILE_LEN;
 	__shared__ float mTile[TILE_SIZE];
 	__shared__ float nTile[TILE_SIZE];
@@ -60,28 +60,21 @@ __global__ void MatrixMulKernel(Matrix M, Matrix N, Matrix P)
 
 	int tilePerDim = (M.width % blockDim.x == 0) ? M.width/blockDim.x : (M.width/blockDim.x + 1);
 	for(int i = 0; i < tilePerDim; i++){//Loop through rows needed to cover P
-
-		//size_t lim_m_x = i == (tilePerDim - 1) ? M.width - i * blockDim.x : blockDim.x;
-		//size_t lim_m_y = i == (tilePerDim - 1) ? M.height - blockIdx.y * blockDim.y : blockDim.y;
-		//if (threadIdx.x < lim_m_x && threadIdx.y < lim_m_y)
-			mTile[threadIdx.x + (threadIdx.y * blockDim.x)] = M.elements[(blockDim.x * i + threadIdx.x) + (threadIdx.y * M.width) + (blockDim.y * blockIdx.y * M.width)];
+		mTile[threadIdx.x + (threadIdx.y * blockDim.x)] = M.elements[(blockDim.y * blockIdx.y * M.width) + (blockDim.x * i) + (threadIdx.y * M.width)  + threadIdx.x];
+		nTile[threadIdx.x + (threadIdx.y * blockDim.x)] = N.elements[(i * blockDim.y * N.width) + (blockDim.x * blockIdx.x) + (N.width * threadIdx.y) + threadIdx.x];
 		
-		
-		//size_t lim_n_x = i == (tilePerDim - 1) ? N.width - blockIdx.x * blockDim.x : blockDim.x;
-		//size_t lim_n_y = i == (tilePerDim - 1) ? N.height - i * blockDim.y : blockDim.y;
-		//if (threadIdx.x < lim_n_x && threadIdx.y < lim_n_y) 
-			nTile[threadIdx.x + (threadIdx.y * blockDim.x)] = N.elements[(blockDim.x * blockIdx.x) + (i * blockDim.y * N.width) + threadIdx.x + (N.width * threadIdx.y)];
-		
-
 		__syncthreads();
-		int nextPos = (i + 1) * blockDim.x;
-		int limit = nextPos > M.width ? M.width % blockDim.x : blockDim.x ;
-		for(int j = 0; j < limit; j++){//M*N
+
+		int tile_end_x = (i + 1) * blockDim.x;
+		int limit = tile_end_x > M.width ? M.width % blockDim.x : blockDim.x ;
+		for(int j = 0; j < limit; j++){
 			pTile[threadIdx.x + (threadIdx.y * blockDim.x)] += mTile[(threadIdx.y * blockDim.x) + j] * nTile[threadIdx.x + j * blockDim.x];
 			
 		}
-	}
 
+		__syncthreads();
+	}
+	
 	const size_t remaining_x = P.width - blockDim.x * blockIdx.x;
 	const size_t remaining_y = P.height - blockDim.y * blockIdx.y;
 
