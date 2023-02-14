@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	int seed = atoi(argv[1]);
 	srand48(seed);
     }
-
+    
     uint8_t *gold_bins = (uint8_t*)malloc(HISTO_HEIGHT*HISTO_WIDTH*sizeof(uint8_t));
 
     // Use kernel_bins for your final result
@@ -88,24 +88,24 @@ int main(int argc, char* argv[])
             ref_2dhisto(input, INPUT_HEIGHT, INPUT_WIDTH, gold_bins);)
 
     /* Include your setup code below (temp variables, function calls, etc.) */
-    uint32_t **kernelInput = generate_histogram_bins();
-    
-    uint8_t* gpuHisto =  initHisto(kernel_bins);
-    uint32_t* gpuInput = initInput(*kernelInput);
-    const int BIN_COUNT = HISTO_HEIGHT * HISTO_WIDTH;
+    uint32_t* deviceInput = allocateInputOnDevice(*input);
+    copyInputToDevice(deviceInput,*input);
+    uint8_t* deviceHisto = allocateHistogramOnDevice(kernel_bins);
+    copyHistoToDevice(deviceHisto,kernel_bins);
+    const int BIN_COUNT = 1024;
     /* End of setup code */
-
     /* This is the call you will use to time your parallel implementation */
     TIME_IT("opt_2dhisto",
             1000,
-            opt_2dhisto(kernel_bins,*kernelInput,INPUT_HEIGHT*INPUT_WIDTH,BIN_COUNT);)
+            opt_2dhisto((uint32_t*)deviceHisto,deviceInput,INPUT_HEIGHT*INPUT_WIDTH,BIN_COUNT);)
 
-    /* Include your teardown code below (temporary variables, function calls, etc.) */
     
-    cudaTeardown(gpuHisto,kernel_bins,gpuInput);
+    /* Include your teardown code below (temporary variables, function calls, etc.) */
+ 
+    cudaTeardown(deviceHisto,kernel_bins,deviceInput);
 
     /* End of teardown code */
-
+    
     int passed=1;
     for (int i=0; i < HISTO_HEIGHT*HISTO_WIDTH; i++){
         if (gold_bins[i] != kernel_bins[i]){
