@@ -23,6 +23,5 @@ int ref_2dhisto(uint32_t *input[], size_t height, size_t width, uint8_t bins[HIS
                 ++p[value];
         }
     }
-
     return 0;
 }
