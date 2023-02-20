@@ -89,7 +89,15 @@ int main(int argc, char* argv[])
 
     /* Include your setup code below (temp variables, function calls, etc.) */
     //std::cout << "here";
-    uint32_t** deviceInput = allocateInputOnDevice(input,INPUT_HEIGHT,INPUT_WIDTH);
+    //std::cout << "GOOD";
+    uint32_t* flattenedInput = (uint32_t*)malloc(4096*4096*sizeof(uint32_t));
+    for(int i = 0 ; i < INPUT_HEIGHT; i++){
+        for(int j = 0; j < 4096; j++){
+            flattenedInput[i*INPUT_HEIGHT + j] = input[i][j];
+        }
+    }
+    uint32_t** fpointer = &flattenedInput;
+    uint32_t* deviceInput = allocateInputOnDevice(fpointer,INPUT_HEIGHT,INPUT_WIDTH);
     uint8_t* deviceHisto = allocateHistogramOnDevice(&kernel_bins,HISTO_HEIGHT,HISTO_WIDTH);
     const int BIN_COUNT = 1024;
 
@@ -105,16 +113,25 @@ int main(int argc, char* argv[])
     cudaTeardown(deviceHisto,kernel_bins,deviceInput);
 
     /* End of teardown code */
-    
+    int sum = 0;
+    int goldSum = 0;
     int passed=1;
     for (int i=0; i < HISTO_HEIGHT*HISTO_WIDTH; i++){
-        std::cout << (int)gold_bins[i] << " -- " << (int)kernel_bins[i] << '\n';
+        std::cout << (int)(input[317][i] % 256) << " -- " << (int)kernel_bins[i] << " @ index "<< i << '\n';
+        sum += kernel_bins[i];
+        goldSum += gold_bins[i];
         if (gold_bins[i] != kernel_bins[i]){
             passed = 0;
-            //break;
         }
     }
     (passed) ? printf("\n    Test PASSED\n") : printf("\n    Test FAILED\n");
+    free(flattenedInput);
     free(gold_bins);
     free(kernel_bins);
+    for(int i = 0; i < INPUT_WIDTH*INPUT_HEIGHT;i+=32){
+        int x = i%INPUT_WIDTH;
+        int y = i/INPUT_WIDTH;
+    //    std::cout << x << " - " << y << " - " << i << " - " << x + (y*4096) <<std::endl;
+    }
+    std::cout << "Gold: " << goldSum << " Ours: " << sum << std::endl;
 }

@@ -1,7 +1,13 @@
 andy xu - axl6282
 tyler dempski - ted4152
 
-Nsight shows a total thread usage of 225280, however given 34 SMs with a block size of 32x32 (1024 threads), so 1024 threads can (and are) scheduled at a time
+Nsight shows a total thread usage of 225280 (not simulataneous, but across the entire program).
+
+Given our program uses 50 registers per thread and ~12k bytes of shared memory per block, 
+we are able to reach full occupancy on each multiprocessor. Since our RTX 2060 gpu has 34 SMs,
+34 * 1024 (peak occupancy) = 34816 threads can (and are) scheduled at a time.
+
+Empirically, our method reaches 99.83% occupancy, so the actual value may be slightly lower.
 
 
 Our solution works out as follows:
