@@ -1,15 +1,15 @@
 Lab3 Report
-Tyler Dempski ted4152
-Andy Xu
+Tyler Dempski - ted4152
+Andy Xu - axl6282
 
 Version 1: First Working Solution
 
 Strategy: 
-Unroll input into 1d input (closer in memory)
-Use if statement to prevent overflow
-AtomicAdd to increase count value
-Write back to histogram without atomic add: one entry per thread to avoid overlap
-Only use one thread for simplicity
+ - Unroll input into 1d input (better spatial locality - closer groupings in memory)
+ - Use if statement to prevent overflow
+ - AtomicAdd to increase count value
+ - Write back to histogram without atomic add: one entry per thread to avoid overlap
+ - Only use one thread for simplicity
 
 1000 Iteration Time: 0.001151
 
