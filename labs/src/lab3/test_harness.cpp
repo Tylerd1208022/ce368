@@ -113,13 +113,10 @@ int main(int argc, char* argv[])
     cudaTeardown(deviceHisto,kernel_bins,deviceInput);
 
     /* End of teardown code */
-    int sum = 0;
-    int goldSum = 0;
+ 
     int passed=1;
     for (int i=0; i < HISTO_HEIGHT*HISTO_WIDTH; i++){
-        std::cout << (int)(input[317][i] % 256) << " -- " << (int)kernel_bins[i] << " @ index "<< i << '\n';
-        sum += kernel_bins[i];
-        goldSum += gold_bins[i];
+        std::cout << (int)gold_bins[i]<<"---"<<(int)kernel_bins[i] << std::endl;
         if (gold_bins[i] != kernel_bins[i]){
             passed = 0;
         }
@@ -128,10 +125,5 @@ int main(int argc, char* argv[])
     free(flattenedInput);
     free(gold_bins);
     free(kernel_bins);
-    for(int i = 0; i < INPUT_WIDTH*INPUT_HEIGHT;i+=32){
-        int x = i%INPUT_WIDTH;
-        int y = i/INPUT_WIDTH;
-    //    std::cout << x << " - " << y << " - " << i << " - " << x + (y*4096) <<std::endl;
-    }
-    std::cout << "Gold: " << goldSum << " Ours: " << sum << std::endl;
+   // std::cout << "Gold: " << goldSum << " Ours: " << sum << std::endl;
 }

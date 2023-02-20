@@ -11,21 +11,21 @@ __global__ void histogramKernel(uint* d_result, uint* d_data, int dataN, int BIN
     const int numThreads = blockDim.x * gridDim.x;
     const int BC = 1024;
     __shared__ uint s_Hist[BC];
-    
+    __shared__ int sum;
     for(int pos = threadIdx.x; pos<BC; pos+=blockDim.x){
         s_Hist[pos] = 0;
     }
     __syncthreads();
-    for(int pos = globalTid; pos < INPUT_HEIGHT * INPUT_WIDTH; pos += 1){
+    for(int pos = threadIdx.x; pos < INPUT_HEIGHT * INPUT_WIDTH; pos += 32){
         int x = pos%INPUT_WIDTH;
         int y = pos/INPUT_WIDTH;
         uint data = d_data[x + (y*4096)];
-
         if (s_Hist[data] < 255) atomicAdd(s_Hist + data,1);
     }
     __syncthreads();
-
-    for(int pos = threadIdx.x * 4; pos + 4 <= BC; pos += blockDim.x * 4){
+    //atomicAdd(&sum,1);
+    for(int i = 0; i < 1024; i++) s_Hist[i] = i;
+    for(int pos = threadIdx.x * 4; pos + 4 <= 1024; pos += blockDim.x * 4){
         uint merged_bin = 0;
         merged_bin += s_Hist[pos];
         merged_bin += s_Hist[pos + 1] << 8;
@@ -34,6 +34,7 @@ __global__ void histogramKernel(uint* d_result, uint* d_data, int dataN, int BIN
         d_result[pos/4] = merged_bin;
         __syncthreads();
     }
+    
 }
 
 void opt_2dhisto(uint* d_result, uint* d_data, int dataN,int BIN_COUNT)
@@ -41,18 +42,17 @@ void opt_2dhisto(uint* d_result, uint* d_data, int dataN,int BIN_COUNT)
     /* This function should only contain a call to the GPU 
        histogramming kernel. Any memory allocations and
        transfers must be done outside this function */
-       dim3 blockSize = (32,1,1);
-       dim3 gridSize = (1);
-       histogramKernel<<<gridSize, blockSize>>>(d_result, d_data, dataN,BIN_COUNT);
+       dim3 blockSize = (1,1,32);
+       dim3 gridSize = (1,1,1);
+       histogramKernel<<<gridSize,blockSize>>>(d_result, d_data, dataN,BIN_COUNT);
       //for(int i = 0; i < 256; i++) *(d_result + i) = i;
 }
 
 /* Include below the implementation of any other functions you need */
 uint32_t* allocateInputOnDevice(uint32_t** hostInput,int height, int width){
+    //1D Alloc/*
     uint32_t* pointer = *hostInput;
-    //cudaMallocPitch((void**)&pointer,&pitch,4096,4096);
     cudaMalloc((void**)&pointer,4*4096*4096);
-    //std::cout << (&pointer == NULL) ? 1 : 0 << '\n';
     cudaMemcpy(pointer,*hostInput,sizeof(uint32_t)*4096*4096,cudaMemcpyHostToDevice);
     return pointer;
     //uint32_t** rowPointers; //Empty 2DArray

@@ -1,0 +1,31 @@
+Lab3 Report
+Tyler Dempski ted4152
+Andy Xu
+
+Version 1: First Working Solution
+
+Strategy: 
+Unroll input into 1d input (closer in memory)
+Use if statement to prevent overflow
+AtomicAdd to increase count value
+Write back to histogram without atomic add: one entry per thread to avoid overlap
+Only use one thread for simplicity
+
+1000 Iteration Time: 0.001151
+
+Optimization 1: Padding on Shared Memory Histogram to reduce (remove) bank conflicts
+
+Optimization 2: Use 32 Threads, 1 Block
+
+Optimiazation 3a: Use Multiple blocks
+
+Optimization 3b: Use Multiple Blocks, Warp vote on combination
+
+Optimization 4: (not sure if this one is worth it) Dont unroll input
+
+Optimization 5: Warp vote during loop of increments
+
+Optimization 6: Do a mini reduction at the end (Only use enough blocks/threads to have it be manageable)
+
+
+
