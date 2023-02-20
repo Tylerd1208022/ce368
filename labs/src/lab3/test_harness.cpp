@@ -84,12 +84,10 @@ int main(int argc, char* argv[])
     uint32_t **input = generate_histogram_bins();
     
     TIME_IT("ref_2dhisto",
-            1,
+            1000,
             ref_2dhisto(input, INPUT_HEIGHT, INPUT_WIDTH, gold_bins);)
 
     /* Include your setup code below (temp variables, function calls, etc.) */
-    //std::cout << "here";
-    //std::cout << "GOOD";
     uint32_t* flattenedInput = (uint32_t*)malloc(4096*4096*sizeof(uint32_t));
     for(int i = 0 ; i < INPUT_HEIGHT; i++){
         for(int j = 0; j < 4096; j++){
@@ -107,10 +105,13 @@ int main(int argc, char* argv[])
             1,
             opt_2dhisto((uint32_t*)deviceHisto,deviceInput,INPUT_HEIGHT*INPUT_WIDTH,BIN_COUNT);)
 
-    //std::cout << (int)deviceHisto[0] << (int)kernel_bins[0];
+    std::cout << "GOOD" << std::endl;
+
     /* Include your teardown code below (temporary variables, function calls, etc.) */
  
     cudaTeardown(deviceHisto,kernel_bins,deviceInput);
+
+    std::cout << "GOOD 2" << std::endl;
 
     /* End of teardown code */
  

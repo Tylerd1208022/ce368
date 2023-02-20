@@ -6,6 +6,17 @@
 #include "util.h"
 #include "ref_2dhisto.h"
 
+__global__ void zeroKernel(uint* d_result, int BIN_COUNT){ // should use BIN_COUNT somehow
+    const int globalTid = blockIdx.x * blockDim.x + threadIdx.x;
+    const int numThreads = blockDim.x * gridDim.x;
+    const int BC = 1024;
+
+    // initialize d_result to 0
+    for(int pos = globalTid; pos < BC; pos += numThreads){
+        d_result[pos] = 0;
+    }
+}
+
 __global__ void histogramKernel(uint* d_result, uint* d_data, int dataN, int BIN_COUNT){ // should use BIN_COUNT somehow
     const int globalTid = blockIdx.x * blockDim.x + threadIdx.x;
     const int numThreads = blockDim.x * gridDim.x;
@@ -21,10 +32,10 @@ __global__ void histogramKernel(uint* d_result, uint* d_data, int dataN, int BIN
     __syncthreads();
 
     // compute hist
-    for(int pos = threadIdx.x; pos < INPUT_HEIGHT * INPUT_WIDTH; pos += numThreads){
+    for(int pos = globalTid; pos < INPUT_HEIGHT * INPUT_WIDTH; pos += numThreads){
         int x = pos % INPUT_WIDTH;
         int y = pos / INPUT_WIDTH;
-        uint data = d_data[x + (y * BC * 4)];
+        uint data = d_data[x + (y * BC * sizeof(uint))];
         if (s_Hist[data] < 255) atomicAdd(s_Hist + data, 1);
     }
 
@@ -46,9 +57,13 @@ void opt_2dhisto(uint* d_result, uint* d_data, int dataN, int BIN_COUNT)
     /* This function should only contain a call to the GPU 
        histogramming kernel. Any memory allocations and
        transfers must be done outside this function */
-       dim3 blockSize = (32, 1, 1);
-       dim3 gridSize = (1, 1, 1);
+       dim3 blockSize = (32, 1);
+       dim3 gridSize = (32, 1);
+       zeroKernel<<<gridSize,blockSize>>>(d_result, BIN_COUNT);
        histogramKernel<<<gridSize,blockSize>>>(d_result, d_data, dataN, BIN_COUNT);
+
+       //cudaError_t err = cudaGetLastError();
+       //if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
 }
 
 /* Include below the implementation of any other functions you need */
