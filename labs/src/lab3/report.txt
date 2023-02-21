@@ -2,30 +2,50 @@ Lab3 Report
 Tyler Dempski - ted4152
 Andy Xu - axl6282
 
-Version 1: First Working Solution
+Version 1 (~4 hours): First Working Solution
 
 Strategy: 
- - Unroll input into 1d input (better spatial locality - closer groupings in memory)
- - Use if statement to prevent overflow
- - AtomicAdd to increase count value
- - Write back to histogram without atomic add: one entry per thread to avoid overlap
+ - Unroll input into 1d input (better spatial locality - closer groupings in memory - coalesced accesses)
+ - Use if statement to prevent overflow/saturation
  - Only use one thread for simplicity
 
-1000 Iteration Time: 0.001151
+For this version, we faced several issues concerning copying the host input array onto our device. 
+Originally, we wanted to initialize our device arrays in a similar 2d layout to the multi-level input array, 
+but ran into many perplexing issues with allocation and releasing memory. In the end, we realized flatenning 
+the input matrix would both simplify our implementation and potentially allow for better coalesced accesses.
 
-Optimization 1: Padding on Shared Memory Histogram to reduce (remove) bank conflicts
-
-Optimization 2: Use 32 Threads, 1 Block
-
-Optimiazation 3a: Use Multiple blocks
-
-Optimization 3b: Use Multiple Blocks, Warp vote on combination
-
-Optimization 4: (not sure if this one is worth it) Dont unroll input
-
-Optimization 5: Warp vote during loop of increments
-
-Optimization 6: Do a mini reduction at the end (Only use enough blocks/threads to have it be manageable)
+1000 Iteration Time: 11.51 seconds
 
 
+Optimization 1 (~1 hour): Padding on Shared Memory Histogram to reduce (remove) bank conflicts
 
+
+Optimization 2 (~6 hour): Use 32 Threads, 1 Block
+
+Strategy: 
+ - Block-level histograms
+ - AtomicAdd to increase local histogram count value
+ - Write back to histogram without atomic add: one entry per thread to avoid overlap
+
+Surprisingly, a number of bugs in our initial implementation made this optimization more involved than initially anticipated.
+
+
+Optimization 3 (~3 hours): Use 32 Threads, 32 Blocks
+
+Strategy: By using 32 blocks and 32 threads, we can divide the input space further for increased parallelism in processing the results.
+We noticed enforcing saturation while merging block-level histograms into the global results could require more involved reductions
+(i.e. a separate kernel to perform histogram merges). We resolved the conflict through another solution - serializing only the writeback stage 
+so that we can maintain the saturation restriction. To do this, we used atomics to enforce block ordering (similar to what was discussed in the recent parallel prefix sum lecture). 
+This model allows for maximized parallelism in processing the large input, while only sacrificng paralellism while writing to the comparatively small output. 
+
+1000 Iteration Time: 6.21 seconds
+
+
+Optimization 4 (~2 hours): Use 32 Threads, 32 Blocks (but faster)
+
+Strategy: We realized we could use the atomic compare and swap operation to perform the individual merge without having to "lock" the entire writeback stage.
+In essence, we employ a while loop to iteratively attempt to merge values until the correct value is eventually merged. atomicCAS returns the prior value used to compare
+so we can confirm the value was correctly updated if the value returned is identical to the value that was read and used to compute the merged result. This greatly simplified our
+implementation and yielded considerable performance improvements.
+
+1000 Iteration Time: 4.55 seconds

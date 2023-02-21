@@ -82,7 +82,6 @@ int main(int argc, char* argv[])
     // A 2D array of histogram bin-ids.  One can think of each of these bins-ids as
     // being associated with a pixel in a 2D image.
     uint32_t **input = generate_histogram_bins();
-    
     TIME_IT("ref_2dhisto",
             1000,
             ref_2dhisto(input, INPUT_HEIGHT, INPUT_WIDTH, gold_bins);)
@@ -97,27 +96,20 @@ int main(int argc, char* argv[])
     uint32_t** fpointer = &flattenedInput;
     uint32_t* deviceInput = allocateInputOnDevice(fpointer,INPUT_HEIGHT,INPUT_WIDTH);
     uint8_t* deviceHisto = allocateHistogramOnDevice(&kernel_bins,HISTO_HEIGHT,HISTO_WIDTH);
-    const int BIN_COUNT = 1024;
 
     /* End of setup code */
     /* This is the call you will use to time your parallel implementation */
     TIME_IT("opt_2dhisto",
-            1,
-            opt_2dhisto((uint32_t*)deviceHisto,deviceInput,INPUT_HEIGHT*INPUT_WIDTH,BIN_COUNT);)
-
-    std::cout << "GOOD" << std::endl;
+            1000,
+            opt_2dhisto((uint32_t*)deviceHisto,deviceInput,INPUT_HEIGHT*INPUT_WIDTH,(uint32_t*)kernel_bins);)
 
     /* Include your teardown code below (temporary variables, function calls, etc.) */
- 
     cudaTeardown(deviceHisto,kernel_bins,deviceInput);
 
-    std::cout << "GOOD 2" << std::endl;
-
     /* End of teardown code */
- 
     int passed=1;
     for (int i=0; i < HISTO_HEIGHT*HISTO_WIDTH; i++){
-        std::cout << (int)gold_bins[i]<<"---"<<(int)kernel_bins[i] << std::endl;
+        // std::cout << (int)gold_bins[i]<<"---"<<(int)kernel_bins[i] << std::endl;
         if (gold_bins[i] != kernel_bins[i]){
             passed = 0;
         }
@@ -126,5 +118,4 @@ int main(int argc, char* argv[])
     free(flattenedInput);
     free(gold_bins);
     free(kernel_bins);
-   // std::cout << "Gold: " << goldSum << " Ours: " << sum << std::endl;
 }

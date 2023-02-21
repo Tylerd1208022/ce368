@@ -1,7 +1,7 @@
 #ifndef OPT_KERNEL
 #define OPT_KERNEL
 
-void opt_2dhisto( uint* d_result, uint32_t* d_data, int dataN, int BIN_COUNT);
+void opt_2dhisto(uint* d_result, uint32_t* d_data, int dataN, uint* kernel_bins);
 
 /* Include below the function headers of any other functions that you implement */
 
