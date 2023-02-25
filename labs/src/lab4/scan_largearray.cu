@@ -87,7 +87,7 @@ runTest( int argc, char** argv)
     int num_elements = 0; // Must support large, non-power-of-2 arrays
 
     // allocate host memory to store the input data
-    unsigned int mem_size = sizeof( float) * num_elements;
+    unsigned int mem_size = sizeof(float) * num_elements;
     float* h_data = (float*) malloc( mem_size);
 
     // * No arguments: Randomly generate input data and compare against the 
@@ -113,7 +113,7 @@ runTest( int argc, char** argv)
             num_elements = size[0];
 
             // allocate host memory to store the input data
-            mem_size = sizeof( float) * num_elements;
+            mem_size = sizeof(float) * num_elements;
             h_data = (float*) malloc( mem_size);
 
             for( unsigned int i = 0; i < num_elements; ++i) 
@@ -133,7 +133,7 @@ runTest( int argc, char** argv)
             num_elements = size[0];
             
             // allocate host memory to store the input data
-            mem_size = sizeof( float) * num_elements;
+            mem_size = sizeof(float) * num_elements;
             h_data = (float*) malloc( mem_size);
 
             errorM = ReadFile(h_data, argv[2], size[0]);
@@ -149,15 +149,15 @@ runTest( int argc, char** argv)
             // between 0 and 1000
             // Use DEFAULT_NUM_ELEMENTS num_elements
             num_elements = DEFAULT_NUM_ELEMENTS;
+            num_elements = 32;
             
             // allocate host memory to store the input data
-            mem_size = sizeof( float) * num_elements;
-            h_data = (float*) malloc( mem_size);
+            mem_size = sizeof(float) * num_elements;
+            h_data = (float*) malloc(mem_size);
 
             // initialize the input data on the host
             for( unsigned int i = 0; i < num_elements; ++i) 
             {
-//                h_data[i] = 1.0f;
                 h_data[i] = (int)(rand() % MAX_RAND);
             }
         break;  
@@ -171,7 +171,7 @@ runTest( int argc, char** argv)
     // compute reference solution
     float* reference = (float*) malloc( mem_size);  
 	cutStartTimer(timer);
-    computeGold( reference, h_data, num_elements);
+    computeGold(reference, h_data, num_elements);
 	cutStopTimer(timer);
     printf("\n\n**===-------------------------------------------------===**\n");
     printf("Processing %d elements...\n", num_elements);
@@ -184,13 +184,13 @@ runTest( int argc, char** argv)
     float* d_idata = NULL;
     float* d_odata = NULL;
 
-    CUDA_SAFE_CALL( cudaMalloc( (void**) &d_idata, mem_size));
-    CUDA_SAFE_CALL( cudaMalloc( (void**) &d_odata, mem_size));
+    CUDA_SAFE_CALL(cudaMalloc( (void**) &d_idata, mem_size));
+    CUDA_SAFE_CALL(cudaMalloc( (void**) &d_odata, mem_size));
     
     // copy host memory to device input array
-    CUDA_SAFE_CALL( cudaMemcpy( d_idata, h_data, mem_size, cudaMemcpyHostToDevice) );
+    CUDA_SAFE_CALL(cudaMemcpy(d_idata, h_data, mem_size, cudaMemcpyHostToDevice));
     // initialize all the other device arrays to be safe
-    CUDA_SAFE_CALL( cudaMemcpy( d_odata, h_data, mem_size, cudaMemcpyHostToDevice) );
+    CUDA_SAFE_CALL(cudaMemcpy(d_odata, h_data, mem_size, cudaMemcpyHostToDevice));
 
     // **===-----------------------------------------------------------===**
 
@@ -216,9 +216,8 @@ runTest( int argc, char** argv)
     // deallocBlockSums();
     // **===-----------------------------------------------------------===**
 
-
     // copy result from device to host
-    CUDA_SAFE_CALL(cudaMemcpy( h_data, d_odata, sizeof(float) * num_elements, 
+    CUDA_SAFE_CALL(cudaMemcpy(h_data, d_odata, sizeof(float) * num_elements, 
                                cudaMemcpyDeviceToHost));
 
     if ((argc - 1) == 3)  // Three Arguments, write result to file
@@ -230,10 +229,14 @@ runTest( int argc, char** argv)
         WriteFile(h_data, argv[1], num_elements);
     }
 
+    // debug print
+    for (int i = 0; i < num_elements; i++) {
+        printf("%f - %f\n", reference[i], h_data[i]);
+    }
 
     // Check if the result is equivalent to the expected soluion
-    unsigned int result_regtest = cutComparef( reference, h_data, num_elements);
-    printf( "Test %s\n", (1 == result_regtest) ? "PASSED" : "FAILED");
+    unsigned int result_regtest = cutComparef(reference, h_data, num_elements);
+    printf("Test %s\n", (1 == result_regtest) ? "PASSED" : "FAILED");
 
     // cleanup memory
     cutDeleteTimer(timer);

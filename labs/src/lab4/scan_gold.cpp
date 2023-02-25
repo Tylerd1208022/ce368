@@ -38,7 +38,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // export C interface
 extern "C" 
-void computeGold( float* reference, float* idata, const unsigned int len);
+void computeGold(float* reference, float* idata, const unsigned int len);
 
 ////////////////////////////////////////////////////////////////////////////////
 //! Compute reference data set
@@ -48,7 +48,7 @@ void computeGold( float* reference, float* idata, const unsigned int len);
 //! @param len        number of elements in reference / idata
 ////////////////////////////////////////////////////////////////////////////////
 void
-computeGold( float* reference, float* idata, const unsigned int len) 
+computeGold(float* reference, float* idata, const unsigned int len) 
 {
   reference[0] = 0;
   double total_sum = 0;
@@ -58,7 +58,6 @@ computeGold( float* reference, float* idata, const unsigned int len)
       reference[i] = idata[i-1] + reference[i-1];
   }
   if (total_sum != reference[len-1])
-      printf("Warning: exceeding single-precision accuracy.  Scan will be inaccurate.\n");
-  
+      printf("Warning: exceeding single-precision accuracy. Scan will be inaccurate.\n");
 }
 
