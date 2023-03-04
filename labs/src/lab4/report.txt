@@ -1,0 +1,18 @@
+Lab 4 report
+Tyler Dempski ted4152
+Andy Xu
+
+Our strategy:
+
+We first began by creating a kernel to handle the reduction/reverse reduction on its own. This would handle only scans of exactly
+the same size as the block dimensions. From here, we expanded the kernel to handle data inputs larger than itself by working for multiple
+blocks. This, however, causes the blocks to compute separately thus producing incorrect results. For that reason,
+we implemented another kernel that would merge the values together, by adding the rightmost value of each preceding private scan
+to each element in the private scan handled by each block. This produces correct results.
+
+Our first implementation was very limited in speed due to the memory latency of adding previous values, so we allocated an array
+in global memory to store all the rightmost values in all the private histograms. This allowed the second kernel to access
+each element in a coalesced manner, as instead of elements sitting BLOCK_SIZE apart in memory, they would be adjacent.
+
+We chose this strategy as it maximizes both occupancy and parallelism, as all elements can be effectively computed in parallel, with
+no need to wait for other blocks, aside from the natural synchronization that occurs between kernels.

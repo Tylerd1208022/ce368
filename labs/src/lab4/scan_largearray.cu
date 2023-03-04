@@ -42,11 +42,11 @@
 #include <string.h>
 #include <math.h>
 #include <cutil.h>
-
+#include <iostream>
 // includes, kernels
 #include <scan_largearray_kernel.cu>  
 
-#define DEFAULT_NUM_ELEMENTS 16000000 
+#define DEFAULT_NUM_ELEMENTS 16777216
 #define MAX_RAND 3
 
 
@@ -149,7 +149,6 @@ runTest( int argc, char** argv)
             // between 0 and 1000
             // Use DEFAULT_NUM_ELEMENTS num_elements
             num_elements = DEFAULT_NUM_ELEMENTS;
-            num_elements = 32;
             
             // allocate host memory to store the input data
             mem_size = sizeof(float) * num_elements;
@@ -186,6 +185,9 @@ runTest( int argc, char** argv)
 
     CUDA_SAFE_CALL(cudaMalloc( (void**) &d_idata, mem_size));
     CUDA_SAFE_CALL(cudaMalloc( (void**) &d_odata, mem_size));
+    int blockSize = 1024;
+    int numBlocks = (num_elements % blockSize == 0) ? (num_elements / blockSize) : (num_elements / blockSize) + 1;
+    float* rightmostArray = allocateDeviceArray(numBlocks);
     
     // copy host memory to device input array
     CUDA_SAFE_CALL(cudaMemcpy(d_idata, h_data, mem_size, cudaMemcpyHostToDevice));
@@ -196,14 +198,14 @@ runTest( int argc, char** argv)
 
     // Run just once to remove startup overhead for more accurate performance 
     // measurement
-    prescanArray(d_odata, d_idata, 16);
+    prescanArray(d_odata, d_idata, 16, rightmostArray, numBlocks);
 
     // Run the prescan
     CUT_SAFE_CALL(cutCreateTimer(&timer));
     cutStartTimer(timer);
     
     // **===-------- Lab4: Modify the body of this function -----------===**
-    prescanArray(d_odata, d_idata, num_elements);
+    prescanArray(d_odata, d_idata, num_elements, rightmostArray, numBlocks);
     // **===-----------------------------------------------------------===**
     CUDA_SAFE_CALL( cudaDeviceSynchronize() );
 
@@ -230,19 +232,25 @@ runTest( int argc, char** argv)
     }
 
     // debug print
+    int buf = 0;
     for (int i = 0; i < num_elements; i++) {
-        printf("%f - %f\n", reference[i], h_data[i]);
+        if (buf > 0 && buf < 12) {
+            printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
+        }
+        if (buf  > 11) return;
+        if (reference[i] != h_data[i]) buf++;
     }
 
     // Check if the result is equivalent to the expected soluion
     unsigned int result_regtest = cutComparef(reference, h_data, num_elements);
     printf("Test %s\n", (1 == result_regtest) ? "PASSED" : "FAILED");
-
+  //  std::cout << numBlocks;
     // cleanup memory
     cutDeleteTimer(timer);
     free( h_data);
     free( reference);
     cudaFree( d_odata);
+    cudaFree(rightmostArray);
     cudaFree( d_idata);
 }
 
