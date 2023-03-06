@@ -5,13 +5,13 @@
 // includes, kernels
 #include <assert.h>
 
+// Lab4: You can use any other block size you wish.
+#define BLOCK_SIZE 1024
+
 #define NUM_BANKS 32
 #define LOG_NUM_BANKS 5
 
-#define CONFLICT_FREE_OFFSET(n) ((n) >> LOG_NUM_BANKS) 
-
-// Lab4: You can use any other block size you wish.
-#define BLOCK_SIZE 1024
+#define CONFLICT_FREE_OFFSET(n) ((n) + (n)/NUM_BANKS) 
 
 // Lab4: Host Helper Functions (allocate your own data structure...)
 
@@ -26,19 +26,19 @@ float* allocateDeviceArray(int size){
 
 // Lab4: Kernel Functions
 __global__ void localScanKernel(float *outArray, float *inArray, int numElements, float* rightmostArray) {
-    __shared__ float inputSlice[BLOCK_SIZE + 1];
+    __shared__ float inputSlice[BLOCK_SIZE + 1 + BLOCK_SIZE/NUM_BANKS];
     int globalIndex = blockDim.x * blockIdx.x + threadIdx.x;
     int offset = 0;
 
-    if(blockIdx.x == 0) {
+    if (blockIdx.x == 0) {
         inputSlice[0] = 0;
         offset = 1;
     }
 
-    if(globalIndex > numElements - 1){ // Divergent but only for one block
-        inputSlice[threadIdx.x + offset] = 0;
+    if (globalIndex > numElements - 1){ // Divergent but only for one block
+        inputSlice[CONFLICT_FREE_OFFSET(threadIdx.x + offset)] = 0;
     } else {
-        inputSlice[threadIdx.x + offset] = inArray[globalIndex - 1 + offset];
+        inputSlice[CONFLICT_FREE_OFFSET(threadIdx.x + offset)] = inArray[globalIndex - 1 + offset];
     }
     __syncthreads();
 
@@ -46,7 +46,7 @@ __global__ void localScanKernel(float *outArray, float *inArray, int numElements
     while (stride < BLOCK_SIZE) {
         int index = (threadIdx.x+1)*stride*2 - 1;
         if(index < BLOCK_SIZE) {
-            inputSlice[index] += inputSlice[index-stride];
+            inputSlice[CONFLICT_FREE_OFFSET(index)] += inputSlice[CONFLICT_FREE_OFFSET(index-stride)];
         }
         stride = stride*2;
         __syncthreads();
@@ -56,15 +56,15 @@ __global__ void localScanKernel(float *outArray, float *inArray, int numElements
     while (stride > 0){
         int index = (threadIdx.x+1)*stride*2 - 1;
         if(index + stride < BLOCK_SIZE) {
-            inputSlice[index+stride] += inputSlice[index];
+            inputSlice[CONFLICT_FREE_OFFSET(index+stride)] += inputSlice[CONFLICT_FREE_OFFSET(index)];
         }
         stride = stride >> 1;
         __syncthreads();
     }
     
     if (globalIndex < numElements){
-        outArray[threadIdx.x + blockIdx.x * blockDim.x] = inputSlice[threadIdx.x];
-        if (threadIdx.x == 0 && blockIdx.x < gridDim.x - 1) rightmostArray[blockIdx.x] = inputSlice[BLOCK_SIZE - 1];
+        outArray[threadIdx.x + blockIdx.x * blockDim.x] = inputSlice[CONFLICT_FREE_OFFSET(threadIdx.x)];
+        if (threadIdx.x == 0 && blockIdx.x < gridDim.x - 1) rightmostArray[blockIdx.x] = inputSlice[CONFLICT_FREE_OFFSET(BLOCK_SIZE - 1)];
     }
 }
 
@@ -109,7 +109,7 @@ void prescanArray(float *outArray, float *inArray, int numElements, float* right
     dim3 BlockDims(1024, 1);
     dim3 GridDims(gridSize, 1);
     localScanKernel<<<GridDims,BlockDims>>>(outArray,inArray,numElements,rightmostArray);
-    //cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
     combineScansKernel<<<GridDims,BlockDims>>>(outArray,outArray,numElements,rightmostArray);
 }
 // **===-----------------------------------------------------------===**

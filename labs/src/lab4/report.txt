@@ -16,3 +16,8 @@ each element in a coalesced manner, as instead of elements sitting BLOCK_SIZE ap
 
 We chose this strategy as it maximizes both occupancy and parallelism, as all elements can be effectively computed in parallel, with
 no need to wait for other blocks, aside from the natural synchronization that occurs between kernels.
+
+Optimization 1: Reduce bank conflicts
+
+Here, we add one element of padding every 32 elements to the shared memory in localScanKernel to reduce bank conflicts as the stride length grows.
+Before, when stride = 32, we'd have a 32-way bank conflict. With this change, there should be none whatsoever.
