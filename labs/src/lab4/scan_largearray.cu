@@ -43,6 +43,7 @@
 #include <math.h>
 #include <cutil.h>
 #include <iostream>
+#include <cmath>
 // includes, kernels
 #include <scan_largearray_kernel.cu>  
 
@@ -58,10 +59,10 @@ int ReadFile(float*, char* file_name, int size);
 void WriteFile(float*, char* file_name, int size);
 
 extern "C" 
-unsigned int compare( const float* reference, const float* data, 
+unsigned int compare(const float* reference, const float* data, 
                      const unsigned int len);
 extern "C" 
-void computeGold( float* reference, float* idata, const unsigned int len);
+void computeGold(float* reference, float* idata, const unsigned int len);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
@@ -76,8 +77,7 @@ main( int argc, char** argv)
 ////////////////////////////////////////////////////////////////////////////////
 //! Run a scan test for CUDA
 ////////////////////////////////////////////////////////////////////////////////
-void
-runTest( int argc, char** argv) 
+void runTest( int argc, char** argv) 
 {
     int errorM = 0;
     float device_time;
@@ -87,8 +87,8 @@ runTest( int argc, char** argv)
     int num_elements = 0; // Must support large, non-power-of-2 arrays
 
     // allocate host memory to store the input data
-    unsigned int mem_size = sizeof(float) * num_elements;
-    float* h_data = (float*) malloc( mem_size);
+    unsigned int mem_size = sizeof(float) *num_elements;
+    float* h_data = (float*) malloc(mem_size);
 
     // * No arguments: Randomly generate input data and compare against the 
     //   host's result.
@@ -116,7 +116,7 @@ runTest( int argc, char** argv)
             mem_size = sizeof(float) * num_elements;
             h_data = (float*) malloc( mem_size);
 
-            for( unsigned int i = 0; i < num_elements; ++i) 
+            for(unsigned int i = 0; i < num_elements; ++i) 
             {
                 h_data[i] = (int)(rand() % MAX_RAND);
             }
@@ -155,7 +155,7 @@ runTest( int argc, char** argv)
             h_data = (float*) malloc(mem_size);
 
             // initialize the input data on the host
-            for( unsigned int i = 0; i < num_elements; ++i) 
+            for(unsigned int i = 0; i < num_elements; ++i) 
             {
                 h_data[i] = (int)(rand() % MAX_RAND);
             }
@@ -168,7 +168,7 @@ runTest( int argc, char** argv)
 
       
     // compute reference solution
-    float* reference = (float*) malloc( mem_size);  
+    float* reference = (float*) malloc(mem_size);  
 	cutStartTimer(timer);
     computeGold(reference, h_data, num_elements);
 	cutStopTimer(timer);
@@ -183,10 +183,10 @@ runTest( int argc, char** argv)
     float* d_idata = NULL;
     float* d_odata = NULL;
 
-    CUDA_SAFE_CALL(cudaMalloc( (void**) &d_idata, mem_size));
-    CUDA_SAFE_CALL(cudaMalloc( (void**) &d_odata, mem_size));
+    CUDA_SAFE_CALL(cudaMalloc((void**) &d_idata, mem_size));
+    CUDA_SAFE_CALL(cudaMalloc((void**) &d_odata, mem_size));
     int blockSize = 1024;
-    int numBlocks = (num_elements % blockSize == 0) ? (num_elements / blockSize) : (num_elements / blockSize) + 1;
+    int numBlocks = std::ceil((double)num_elements / (double)blockSize);
     float* rightmostArray = allocateDeviceArray(numBlocks);
     
     // copy host memory to device input array
@@ -207,7 +207,7 @@ runTest( int argc, char** argv)
     // **===-------- Lab4: Modify the body of this function -----------===**
     prescanArray(d_odata, d_idata, num_elements, rightmostArray, numBlocks);
     // **===-----------------------------------------------------------===**
-    CUDA_SAFE_CALL( cudaDeviceSynchronize() );
+    CUDA_SAFE_CALL(cudaDeviceSynchronize());
 
     cutStopTimer(timer);
     printf("CUDA Processing time: %f (ms)\n", cutGetTimerValue(timer));
@@ -232,14 +232,14 @@ runTest( int argc, char** argv)
     }
 
     // debug print
-    int buf = 0;
-    for (int i = 0; i < num_elements; i++) {
-        if (buf > 0 && buf < 12) {
-            printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
-        }
-        if (buf  > 11) return;
-        if (reference[i] != h_data[i]) buf++;
-    }
+    // int buf = 0;
+    // for (int i = 0; i < num_elements; i++) {
+    //     if (buf > 0 && buf < 12) {
+    //         printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
+    //     }
+    //     if (buf  > 11) return;
+    //     if (reference[i] != h_data[i]) buf++;
+    // }
 
     // Check if the result is equivalent to the expected soluion
     unsigned int result_regtest = cutComparef(reference, h_data, num_elements);
