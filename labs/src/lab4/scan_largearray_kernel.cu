@@ -1,6 +1,7 @@
 #ifndef _PRESCAN_CU_
 #define _PRESCAN_CU_
 
+#include <vector>
 #include <cmath>
 // includes, kernels
 #include <assert.h>
@@ -93,21 +94,37 @@ void prescanArray(float *outArray, float *inArray, int numElements, float* right
 {
     dim3 BlockDims(1024, 1);
     dim3 GridDims(gridSize, 1);
-    
-    localScanKernel<<<GridDims,BlockDims>>>(outArray,inArray,numElements,rightmostArray);
 
-    size_t rightmost_len = std::ceil((double)numElements/(double)BLOCK_SIZE);
-    size_t mem_size = sizeof(float) * rightmost_len;
-    float* h_rightmost_sum = (float*) malloc(mem_size);
-    float* h_rightmost = (float*) malloc(mem_size);
-    cudaMemcpy(h_rightmost, rightmostArray, mem_size, cudaMemcpyDeviceToHost);
-    for( unsigned int i = 1; i < rightmost_len; ++i) 
+    localScanKernel<<<GridDims,BlockDims>>>(outArray, inArray, numElements, rightmostArray);
+
+    int n = std::ceil((double)numElements / (double)BLOCK_SIZE);
+    std::vector<float*> rightArrays = {rightmostArray};
+    std::vector<int> num_elements = {n};
+    while (n > 2 * BLOCK_SIZE) {
+        float* rArray = allocateDeviceArray(std::ceil((double)n/(double)BLOCK_SIZE));
+
+        localScanKernel<<<GridDims,BlockDims>>>(rightArrays.back(), rightArrays.back(), n, rArray);
+    
+        n = std::ceil((double)n / (double)BLOCK_SIZE);
+        rightArrays.push_back(rArray);
+        num_elements.push_back(n);
+    }
+
+    size_t n_size = sizeof(float) * n;
+    float* h_rightmost_sum = (float*) malloc(n_size);
+    float* h_rightmost = (float*) malloc(n_size);
+    cudaMemcpy(h_rightmost, rightArrays.back(), n_size, cudaMemcpyDeviceToHost);
+    h_rightmost_sum[0] = 0;
+    for(unsigned int i = 1; i < n; ++i) 
     {
         h_rightmost_sum[i] = h_rightmost_sum[i-1] + h_rightmost[i-1];
     }
-    cudaMemcpy(rightmostArray, h_rightmost_sum, mem_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(rightArrays.back(), h_rightmost_sum, n_size, cudaMemcpyHostToDevice);
     
-    combineScansKernel<<<GridDims,BlockDims>>>(outArray,outArray,numElements,rightmostArray);
+    for (int i = rightArrays.size() - 2; i >= 0; i--) {
+        combineScansKernel<<<GridDims,BlockDims>>>(rightArrays[i], rightArrays[i], num_elements[i], rightArrays[i + 1]);
+    }
+    combineScansKernel<<<GridDims,BlockDims>>>(outArray, outArray, numElements, rightArrays[0]);
 }
 // **===-----------------------------------------------------------===**
 

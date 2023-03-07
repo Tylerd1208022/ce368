@@ -40,3 +40,13 @@ these combined values back to the gpu. The merge kernel then only needs to add t
 desired prefix sum.
 
 Speedup: ~12.5x
+
+
+Optimization 3: Nested prefix sum
+
+In the above optimization 2, we merge block sums sequentially. For this optimization, we attempt to re-use the prefix kernel to recursively merge 
+intermediate sums and reconstruct the overall prefix sum. This was tricky to implement, and yielded limited speed up for 16777216 elements.
+We hypothesize that this will likely give a larger speedup for very large number of elements since this setup better parallelizes
+intermediate merge calculations.
+
+Speedup: ~7.5x

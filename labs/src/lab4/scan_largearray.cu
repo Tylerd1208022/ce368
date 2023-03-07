@@ -232,14 +232,15 @@ void runTest( int argc, char** argv)
     }
 
     // debug print
-    // int buf = 0;
-    // for (int i = 0; i < num_elements; i++) {
-    //     if (buf > 0 && buf < 12) {
-    //         printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
-    //     }
-    //     if (buf > 11) return;
-    //     if (reference[i] != h_data[i]) buf++;
-    // }
+    int buf = 0;
+    for (int i = 0; i < num_elements; i++) {
+        if (buf > 0 && buf < 12) {
+            if (i-2 >= 0)
+                printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
+        }
+        if (buf > 11) return;
+        if (reference[i] - h_data[i] > 0.001) buf++;
+    }
 
     // Check if the result is equivalent to the expected soluion
     unsigned int result_regtest = cutComparef(reference, h_data, num_elements);
