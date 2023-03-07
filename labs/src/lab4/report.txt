@@ -17,7 +17,26 @@ each element in a coalesced manner, as instead of elements sitting BLOCK_SIZE ap
 We chose this strategy as it maximizes both occupancy and parallelism, as all elements can be effectively computed in parallel, with
 no need to wait for other blocks, aside from the natural synchronization that occurs between kernels.
 
+Speedup: ~0.15x
+
+
 Optimization 1: Reduce bank conflicts
 
 Here, we add one element of padding every 32 elements to the shared memory in localScanKernel to reduce bank conflicts as the stride length grows.
 Before, when stride = 32, we'd have a 32-way bank conflict. With this change, there should be none whatsoever.
+
+Speedup: ~0.2x
+
+
+Optimization 2: Replace tedious intermediate sum calculation
+
+Previously, our merge kernel would iteratively add previous prefix totals from past blocks to each value in the output.
+For instance, to compute the combined a single value in block 5, we'd need add the total sum from block 0, block 1, block 2, 
+block 3, and block 4 to its current block-level sum. This leads to repeated work since a value in block 6 would need to repeat
+these additions (and add the total sum from block 5).
+
+To resolve this issue, we copy the intermediate total values from each block back to the cpu, compute a prefix sum of these values, then copy 
+these combined values back to the gpu. The merge kernel then only needs to add the single combined value to each block-level sum to compute the 
+desired prefix sum.
+
+Speedup: ~12.5x

@@ -198,7 +198,7 @@ void runTest( int argc, char** argv)
 
     // Run just once to remove startup overhead for more accurate performance 
     // measurement
-    prescanArray(d_odata, d_idata, 16, rightmostArray, numBlocks);
+    // prescanArray(d_odata, d_idata, 16, rightmostArray, numBlocks);
 
     // Run the prescan
     CUT_SAFE_CALL(cutCreateTimer(&timer));
@@ -237,7 +237,7 @@ void runTest( int argc, char** argv)
     //     if (buf > 0 && buf < 12) {
     //         printf("%f - %f ---- %i\n", reference[i-2], h_data[i-2],i-2);
     //     }
-    //     if (buf  > 11) return;
+    //     if (buf > 11) return;
     //     if (reference[i] != h_data[i]) buf++;
     // }
 

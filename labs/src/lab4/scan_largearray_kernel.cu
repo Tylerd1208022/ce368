@@ -70,8 +70,10 @@ __global__ void localScanKernel(float *outArray, float *inArray, int numElements
 
 __global__ void combineScansKernel(float *outArray, float *inArray, int numElements, float* rightmostArray){
     __shared__ float localEntries[BLOCK_SIZE];
-    __shared__ float rightmostEntries[BLOCK_SIZE];
+    __shared__ float rightmostEntry;
     int globalIndex = blockDim.x * blockIdx.x + threadIdx.x;
+
+    rightmostEntry = rightmostArray[blockIdx.x];
 
     if (globalIndex > numElements - 1){
         localEntries[threadIdx.x] = 0;
@@ -79,25 +81,8 @@ __global__ void combineScansKernel(float *outArray, float *inArray, int numEleme
         localEntries[threadIdx.x] = inArray[threadIdx.x + blockDim.x * blockIdx.x];
     }
 
-    // if (globalIndex < numElements) outArray[threadIdx.x + blockDim.x * blockIdx.x] = localEntries[threadIdx.x];
-
-    int iLim = std::ceil((double)gridDim.x / (double)BLOCK_SIZE);
-    for(int i = 0; i < iLim; i ++) {
-        // Load in first BLOCK_SIZE elements of rightmostArray if they exist
-        // (if ID < # of blocks - 1)
-        int pos = threadIdx.x + i * blockDim.x;
-        rightmostEntries[threadIdx.x] = (pos < gridDim.x - 1) ? rightmostArray[pos] : 0;
-        // Add each element of the array while j < blockDim.x (only elements before) or
-        // until we get to BLOCK_SIZE
-        int val = blockIdx.x - i * BLOCK_SIZE;
-        int jLim = (val > BLOCK_SIZE) ? BLOCK_SIZE : val;
-        __syncthreads();
-        for (int j = 0; j < jLim; j++) {
-            localEntries[threadIdx.x] += rightmostEntries[j];
-        }
-        __syncthreads();
-    }
-
+    localEntries[threadIdx.x] += rightmostEntry;
+        
     if (globalIndex < numElements) outArray[threadIdx.x + blockDim.x * blockIdx.x] = localEntries[threadIdx.x];
 }
 
@@ -108,8 +93,20 @@ void prescanArray(float *outArray, float *inArray, int numElements, float* right
 {
     dim3 BlockDims(1024, 1);
     dim3 GridDims(gridSize, 1);
+    
     localScanKernel<<<GridDims,BlockDims>>>(outArray,inArray,numElements,rightmostArray);
-    // cudaDeviceSynchronize();
+
+    size_t rightmost_len = std::ceil((double)numElements/(double)BLOCK_SIZE);
+    size_t mem_size = sizeof(float) * rightmost_len;
+    float* h_rightmost_sum = (float*) malloc(mem_size);
+    float* h_rightmost = (float*) malloc(mem_size);
+    cudaMemcpy(h_rightmost, rightmostArray, mem_size, cudaMemcpyDeviceToHost);
+    for( unsigned int i = 1; i < rightmost_len; ++i) 
+    {
+        h_rightmost_sum[i] = h_rightmost_sum[i-1] + h_rightmost[i-1];
+    }
+    cudaMemcpy(rightmostArray, h_rightmost_sum, mem_size, cudaMemcpyHostToDevice);
+    
     combineScansKernel<<<GridDims,BlockDims>>>(outArray,outArray,numElements,rightmostArray);
 }
 // **===-----------------------------------------------------------===**
