@@ -11,7 +11,7 @@ we implemented another kernel that would merge the values together, by adding th
 to each element in the private scan handled by each block. This produces correct results.
 
 Our first implementation was very limited in speed due to the memory latency of adding previous values, so we allocated an array
-in global memory to store all the rightmost values in all the private histograms. This allowed the second kernel to access
+in global memory to store all the rightmost values in all the private scans. This allowed the second kernel to access
 each element in a coalesced manner, as instead of elements sitting BLOCK_SIZE apart in memory, they would be adjacent.
 
 We chose this strategy as it maximizes both occupancy and parallelism, as all elements can be effectively computed in parallel, with
@@ -50,3 +50,16 @@ We hypothesize that this will likely give a larger speedup for very large number
 intermediate merge calculations.
 
 Speedup: ~7.5x
+
+Final Speedup for 16777216: 12.5x best, 7.268x different machine (used for FLOP CALCULATION)
+
+We handled non-power-of-two arrays by padding values to the input that have no effect on the operation at hand. This is 0 for addition
+but could be extended to any operation by adding padded values that have no affect on the scan.
+
+Cpu FLOPs: 591163354 FLOPs
+GPU Flops: 4.29*10^9 FLOPs
+
+The CPU pushes towards its architectural limit when computing float operations, as it is computing a single element at a time. It does not have any
+book keeping issues to deal with when computing serially, as well as not having any memory conflicts or race conditions to handle. The GPU on the otherhand is more
+limited by factors such as memory latency and limited parallelism. While we maximize parallelism for our approach, the hardware
+is built to support even more parallelism and therefore we cannot maximize the FLOP rate.
